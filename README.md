@@ -128,6 +128,7 @@ See https://wiki.metakgp.org/w/Metakgp:Project_Maintainer.
 
 - [Harsh Khandeparkar](https://github.com/harshkhandeparkar)
 - [Devansh Gupta](https://github.com/Devansh-bit)
+- [Dipam Sen](https://github.com/dipamsen)
 
 <!-- ### Past Maintainer(s)
 
