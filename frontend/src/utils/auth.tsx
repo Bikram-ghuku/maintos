@@ -12,16 +12,16 @@ interface IAuthContext {
 	isAuthenticated: boolean;
 	jwt: string | null;
 	username: string | null;
-	login: (jwt: string) => void;
-	logout: () => void;
+	login: (jwt: string) => Promise<void>;
+	logout: () => Promise<void>;
 }
 
 const DEFAULT_AUTH_CONTEXT: IAuthContext = {
 	isAuthenticated: false,
 	jwt: null,
 	username: null,
-	login: () => { },
-	logout: () => { }
+	login: async () => { },
+	logout: async () => { }
 };
 
 const getLsAuthJwt = () => {

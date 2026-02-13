@@ -19,7 +19,7 @@ export default function OAuthPage() {
 
 			if (response.status === "success") {
 				if ("token" in response.data) {
-					auth.login(response.data["token"]);
+					await auth.login(response.data["token"]);
 					setMessage("Successfully authenticated.");
 					navigate('/');
 				} else {
