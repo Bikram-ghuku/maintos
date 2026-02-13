@@ -83,11 +83,10 @@ _Maintos_ is a maintainer's dashboard which gives maintainers access to informat
 
 ### Environment Variables
 
-This project needs a [GitHub OAuth app](https://github.com/settings/developers) and a [Personal Access Token](https://github.com/settings/personal-access-tokens) of an admin of the GitHub org.
+This project needs a [GitHub App](https://github.com/settings/developers). In the Github App, enable "Organization > Members" read-only and "Repository > Metadata" permissions.
 
-- `GH_CLIENT_ID`, `GH_CLIENT_SECRET`: Client ID and Client Secret for the GitHub OAuth application.
+- `GH_CLIENT_ID`, `GH_CLIENT_SECRET`: Client ID and Client Secret for the GitHub App.
 - `GH_ORG_NAME`: Name of the GitHub organisation
-- `GH_ORG_ADMIN_TOKEN`: A GitHub PAT of an org admin
 - `JWT_SECRET`: A secure string (for signing JWTs)
 - `DEPLOYMENTS_DIR`: Absolute path to directory containing all the project git repos (deployed)
 - `SERVER_PORT`: Port where the backend server listens to
