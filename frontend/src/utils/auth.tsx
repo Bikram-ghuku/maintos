@@ -84,4 +84,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export const OAUTH_LOGIN_URL = `https://github.com/login/oauth/authorize?client_id=${import.meta.env.VITE_GH_OAUTH_CLIENT_ID}`;
+export const OAUTH_LOGIN_URL = `https://github.com/login/oauth/authorize?client_id=${import.meta.env.VITE_GH_OAUTH_CLIENT_ID}&redirect_uri=${import.meta.env.VITE_CALLBACK_URL}`;
