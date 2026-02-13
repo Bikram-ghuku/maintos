@@ -1,4 +1,4 @@
-import { HashRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./utils/auth";
 import OAuthPage from "./pages/OAuthPage";
 import MainPage from "./pages/MainPage";
@@ -7,7 +7,7 @@ import ProjectPage from "./pages/ProjectPage";
 function App() {
 	return (
 		<>
-			<HashRouter>
+			<BrowserRouter>
 				<AuthProvider>
 					<Routes>
 						<Route path="/" element={<MainPage />} />
@@ -18,7 +18,7 @@ function App() {
 						/>
 					</Routes>
 				</AuthProvider>
-			</HashRouter>
+			</BrowserRouter>
 		</>
 	);
 }
