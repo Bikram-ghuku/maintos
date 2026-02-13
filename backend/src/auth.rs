@@ -13,6 +13,7 @@ use crate::{env::EnvVars, github, utils::Res};
 pub struct Auth {
     pub jwt: String,
     pub username: String,
+    pub gh_access_token: String,
 }
 
 /// Verifies whether a JWT is valid and signed with the secret key
@@ -31,40 +32,55 @@ pub async fn verify_token(token: &str, env_vars: &EnvVars) -> Res<Auth> {
     let username = username
         .as_str()
         .ok_or("Username is not a string.")
-        .map_err(|_| anyhow!("Username is not a string."))?;
+        .map_err(|_| anyhow!("Username is not a string."))?
+        .to_owned();
+
+    let gh_access_token = claims
+        .private
+        .get("gh_access_token")
+        .ok_or("Github access token not in the claims.")
+        .map_err(|_| anyhow!("Github access token not in the claims."))?;
+    let gh_access_token = gh_access_token
+        .as_str()
+        .ok_or("GH access token is not a string.")
+        .map_err(|_| anyhow!("GH access token is not a string."))?
+        .to_owned();
 
     Ok(Auth {
         jwt: token.to_owned(),
-        username: username.to_owned(),
+        username,
+        gh_access_token,
     })
 }
 
 /// Generates a JWT with the username (for claims) and secret key
-async fn generate_token(username: &str, env_vars: &EnvVars) -> Res<String> {
+async fn generate_token(username: &str, gh_access_token: &str, env_vars: &EnvVars) -> Res<String> {
     let jwt_key = env_vars.get_jwt_key()?;
 
-    let expiration = chrono::Utc::now()
-        .checked_add_days(chrono::naive::Days::new(7))
-        .ok_or("Error checking JWT expiration date")
-        .map_err(|_| anyhow!("Error setting JWT expiry date."))?
-        .timestamp()
-        .unsigned_abs(); // 7 Days expiration
+    let now = chrono::Utc::now();
+    let expiry = (now + chrono::Duration::hours(4)).timestamp(); // Github access tokens expire in 8 hours
+    let issued_at = now.timestamp();
 
     let mut private_claims = BTreeMap::new();
     private_claims.insert(
         "username".into(),
         serde_json::Value::String(username.into()),
     );
+    private_claims.insert(
+        "gh_access_token".into(),
+        serde_json::Value::String(gh_access_token.into()),
+    );
 
     let claims = Claims {
         registered: RegisteredClaims {
             audience: None,
-            issued_at: None,
             issuer: None,
             subject: None,
             not_before: None,
             json_web_token_id: None,
-            expiration: Some(expiration),
+
+            issued_at: Some(issued_at as u64),
+            expiration: Some(expiry as u64),
         },
         private: private_claims,
     };
@@ -96,16 +112,14 @@ pub async fn authenticate_user(code: &str, env_vars: &EnvVars) -> Res<Option<Str
     // Check the user's membership in the github org
     let client = reqwest::Client::new();
 
-    let is_member = github::check_membership(
-        &client,
-        &env_vars.gh_org_admin_token,
-        &env_vars.gh_org_name,
-        &username,
-    )
-    .await?;
+    let is_member =
+        github::check_membership(&client, &access_token, &env_vars.gh_org_name, &username).await?;
 
     if is_member {
-        Ok(Some(generate_token(&username, env_vars).await?))
+        // Generate JWT
+        Ok(Some(
+            generate_token(&username, &access_token, env_vars).await?,
+        ))
     } else {
         Ok(None)
     }

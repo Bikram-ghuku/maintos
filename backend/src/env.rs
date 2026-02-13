@@ -15,9 +15,6 @@ pub struct EnvVars {
     /// OAuth app client id (public token)
     pub gh_client_id: String,
     #[arg(env)]
-    /// An org admin's Github token (with the `read:org` permission)
-    pub gh_org_admin_token: String,
-    #[arg(env)]
     /// JWT encryption secret (make it a long, randomized string)
     jwt_secret: String,
     #[arg(env)]

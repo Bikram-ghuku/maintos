@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tokio::fs;
 
-use crate::{env::EnvVars, github};
+use crate::{auth::{self, Auth}, env::EnvVars, github};
 
 pub(crate) type Res<T> = Result<T, anyhow::Error>;
 
@@ -21,7 +21,11 @@ pub struct Deployment {
 }
 
 /// Check if a user has permission to access a project
-pub async fn check_access(env_vars: &EnvVars, username: &str, project_name: &str) -> Res<Deployment> {
+pub async fn check_access(
+    env_vars: &EnvVars,
+    auth: &Auth,
+    project_name: &str,
+) -> Res<Deployment> {
     let deployments_dir = &env_vars.deployments_dir;
 
     let client = reqwest::Client::new();
@@ -49,14 +53,15 @@ pub async fn check_access(env_vars: &EnvVars, username: &str, project_name: &str
         .ok_or(anyhow!(
             "Error parsing repository remote URL: Repo name not found."
         ))?
-        .to_string();   
+        .to_string();
+
     if repo_owner == env_vars.gh_org_name {
         let collab_role = github::get_collaborator_role(
             &client,
-            &env_vars.gh_org_admin_token,
+            &auth.gh_access_token,
             &repo_owner,
             &repo_name,
-            username,
+            &auth.username,
         )
         .await?;
 
@@ -72,21 +77,25 @@ pub async fn check_access(env_vars: &EnvVars, username: &str, project_name: &str
             });
         }
     }
-    Err(anyhow!("User does not have permission to access this project."))
+    Err(anyhow!(
+        "User does not have permission to access this project."
+    ))
 }
 
 /// Get a list of deployments
-pub async fn get_deployments(env_vars: &EnvVars, username: &str) -> Res<Vec<Deployment>> {
+pub async fn get_deployments(env_vars: &EnvVars, auth: &Auth) -> Res<Vec<Deployment>> {
     let deployments_dir = &env_vars.deployments_dir;
 
     let mut deployments = Vec::new();
 
     let mut dir_iter = fs::read_dir(deployments_dir).await?;
     while let Some(path) = dir_iter.next_entry().await? {
-        if path.file_type().await?.is_dir()
-        {
-            let project_name = path.file_name().into_string().map_err(|_| anyhow!("Invalid project name"))?;
-            if let Some(deployment) = check_access(env_vars, username, &project_name).await.ok() {
+        if path.file_type().await?.is_dir() {
+            let project_name = path
+                .file_name()
+                .into_string()
+                .map_err(|_| anyhow!("Invalid project name"))?;
+            if let Some(deployment) = check_access(env_vars, &auth, &project_name).await.ok() {
                 deployments.push(deployment);
             }
         }
@@ -111,15 +120,19 @@ pub async fn get_project_settings(env_vars: &EnvVars, project_name: &str) -> Res
     );
 
     if let Ok(maint_file_contents) = fs::read_to_string(maint_file_path).await {
-        Ok(ProjectSettings { deploy_dir: maint_file_contents.trim().into() })
+        Ok(ProjectSettings {
+            deploy_dir: maint_file_contents.trim().into(),
+        })
     } else {
-        Ok(ProjectSettings { deploy_dir: ".".into() } )
+        Ok(ProjectSettings {
+            deploy_dir: ".".into(),
+        })
     }
 }
 
 /// Get the environment variables for a project
-pub async fn get_env(env_vars: &EnvVars, username: &str, project_name: &str) -> Res<Value> {
-    check_access(env_vars, username, project_name).await?;
+pub async fn get_env(env_vars: &EnvVars, auth: &Auth, project_name: &str) -> Res<Value> {
+    check_access(env_vars, &auth, project_name).await?;
 
     let project_settings = get_project_settings(env_vars, project_name).await?;
 

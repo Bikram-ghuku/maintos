@@ -67,15 +67,15 @@ pub async fn get_username(client: &Client, access_token: &str) -> Res<String> {
     Ok(username)
 }
 
-/// Runs a Github API request authenticated with the admin access token
-pub async fn admin_gh_request(
+/// Runs a Github API request authenticated with an access token
+pub async fn auth_gh_request(
     client: &Client,
-    admin_token: &str,
+    access_token: &str,
     path: String,
 ) -> Result<reqwest::Response, reqwest::Error> {
     client
         .get(format!("https://api.github.com/{path}",))
-        .header("Authorization", format!("Bearer {}", admin_token))
+        .header("Authorization", format!("Bearer {}", access_token))
         .header("User-Agent", "bruh why is this required")
         .send()
         .await
@@ -83,13 +83,13 @@ pub async fn admin_gh_request(
 
 pub async fn check_membership(
     client: &Client,
-    admin_token: &str,
+    access_token: &str,
     org: &str,
     username: &str,
 ) -> Res<bool> {
-    let response = admin_gh_request(
+    let response = auth_gh_request(
         client,
-        admin_token,
+        access_token,
         format!("orgs/{}/members/{}", org, username),
     )
     .await?;
@@ -119,14 +119,14 @@ struct GithubCollabResponse {
 // See https://docs.github.com/en/rest/collaborators/collaborators?apiVersion=2022-11-28#get-repository-permissions-for-a-user
 pub async fn get_collaborator_role(
     client: &Client,
-    admin_token: &str,
+    access_token: &str,
     org: &str,
     repo: &str,
     username: &str,
 ) -> Res<Option<String>> {
-    let response = admin_gh_request(
+    let response = auth_gh_request(
         client,
-        admin_token,
+        access_token,
         format!("repos/{org}/{repo}/collaborators/{username}/permission"),
     )
     .await?;

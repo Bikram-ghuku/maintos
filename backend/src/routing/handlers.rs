@@ -85,7 +85,7 @@ pub async fn deployments(
 ) -> HandlerReturn<Vec<Deployment>> {
     Ok(BackendResponse::ok(
         "Successfully fetched deployments".into(),
-        get_deployments(&state.env_vars, &auth.username).await?,
+        get_deployments(&state.env_vars, &auth).await?,
     ))
 }
 
@@ -102,7 +102,7 @@ pub async fn get_env_vars(
     Json(body): Json<EnvVarsReq>,
 ) -> HandlerReturn<Value> {
     let project_name = body.project_name.as_str();
-    if let Ok(env_vars) = get_env(&state.env_vars, &auth.username, project_name).await {
+    if let Ok(env_vars) = get_env(&state.env_vars, &auth, project_name).await {
         return Ok(BackendResponse::ok(
             "Successfully fetched environment variables.".into(),
             env_vars,
