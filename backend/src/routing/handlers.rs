@@ -103,14 +103,14 @@ pub async fn get_env_vars(
 ) -> HandlerReturn<Value> {
     let project_name = body.project_name.as_str();
     if let Ok(env_vars) = get_env(&state.env_vars, &auth, project_name).await {
-        return Ok(BackendResponse::ok(
+        Ok(BackendResponse::ok(
             "Successfully fetched environment variables.".into(),
             env_vars,
-        ));
+        ))
     } else {
-        return Ok(BackendResponse::error(
+        Ok(BackendResponse::error(
             "Error: Project not found or access denied.".into(),
             StatusCode::NOT_FOUND,
-        ));
+        ))
     }
 }

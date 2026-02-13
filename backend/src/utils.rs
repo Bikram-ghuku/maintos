@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tokio::fs;
 
-use crate::{auth::{self, Auth}, env::EnvVars, github};
+use crate::{auth::Auth, env::EnvVars, github};
 
 pub(crate) type Res<T> = Result<T, anyhow::Error>;
 
@@ -95,7 +95,7 @@ pub async fn get_deployments(env_vars: &EnvVars, auth: &Auth) -> Res<Vec<Deploym
                 .file_name()
                 .into_string()
                 .map_err(|_| anyhow!("Invalid project name"))?;
-            if let Some(deployment) = check_access(env_vars, &auth, &project_name).await.ok() {
+            if let Ok(deployment) = check_access(env_vars, auth, &project_name).await {
                 deployments.push(deployment);
             }
         }
@@ -132,7 +132,7 @@ pub async fn get_project_settings(env_vars: &EnvVars, project_name: &str) -> Res
 
 /// Get the environment variables for a project
 pub async fn get_env(env_vars: &EnvVars, auth: &Auth, project_name: &str) -> Res<Value> {
-    check_access(env_vars, &auth, project_name).await?;
+    check_access(env_vars, auth, project_name).await?;
 
     let project_settings = get_project_settings(env_vars, project_name).await?;
 
