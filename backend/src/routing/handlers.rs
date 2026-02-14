@@ -13,7 +13,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::auth::{self, Auth};
-use crate::utils::{Deployment, get_deployments, get_env};
+use crate::{deployments::Deployment, utils::get_deployments};
 
 use super::{AppError, BackendResponse, RouterState};
 
@@ -79,13 +79,10 @@ pub async fn profile(Extension(auth): Extension<Auth>) -> HandlerReturn<ProfileR
 }
 
 /// Returns a list of all deployments
-pub async fn deployments(
-    State(state): HandlerState,
-    Extension(auth): Extension<Auth>,
-) -> HandlerReturn<Vec<Deployment>> {
+pub async fn deployments(State(state): HandlerState) -> HandlerReturn<Vec<Deployment>> {
     Ok(BackendResponse::ok(
         "Successfully fetched deployments".into(),
-        get_deployments(&state.env_vars, &auth).await?,
+        get_deployments(&state.env_vars).await?,
     ))
 }
 
@@ -102,17 +99,27 @@ pub async fn get_env_vars(
     Json(body): Json<EnvVarsReq>,
 ) -> HandlerReturn<Value> {
     let project_name = body.project_name.as_str();
-    let env_vars = get_env(&state.env_vars, &auth, project_name).await?;
+    let deployment = Deployment::from_deployment_dir(&state.env_vars, project_name).await?;
+    let access = deployment.has_access(&auth).await?;
 
-    if let Some(vars) = env_vars {
-        Ok(BackendResponse::ok(
-            "Successfully fetched environment variables.".into(),
-            vars.into(),
-        ))
+    if access {
+        let env_vars = deployment.get_env().await?;
+
+        if let Some(vars) = env_vars {
+            Ok(BackendResponse::ok(
+                "Successfully fetched environment variables.".into(),
+                vars.into(),
+            ))
+        } else {
+            Ok(BackendResponse::error(
+                "`.env` file not found.".into(),
+                StatusCode::NOT_FOUND,
+            ))
+        }
     } else {
         Ok(BackendResponse::error(
-            "`.env` file not found.".into(),
-            StatusCode::NOT_FOUND,
+            "Access denied.".into(),
+            StatusCode::UNAUTHORIZED,
         ))
     }
 }

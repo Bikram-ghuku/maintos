@@ -34,7 +34,9 @@ export interface IEndpointTypes {
 	deployments: {
 		request: null;
 		response: {
-			name: string;
+			deployment_dir: string;
+			repo_owner: string;
+			repo_name: string;
 			repo_url: string;
 		}[];
 	};

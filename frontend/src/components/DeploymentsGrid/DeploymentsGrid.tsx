@@ -37,7 +37,7 @@ function DeploymentsGrid() {
 				{
 					deployments.map(
 						(deployment) => <div className="deployment-card">
-							<Link to={`p/${deployment.name}`}>{deployment.name}</Link>
+							<Link to={`p/${deployment.deployment_dir}`}>{deployment.repo_name}</Link>
 						</div>
 					)
 				}

@@ -16,7 +16,8 @@ function ProjectInfo({ projectName }: { projectName?: string }) {
         if (!projectName) {
             setMessage("Project name not found.");
             return;
-        }
+		}
+		setMessage("Fetching project details...");
         const resp = await makeRequest("get_env", "post", { project_name: projectName }, auth.jwt);
 
         if (resp.status == "success") {
@@ -38,7 +39,7 @@ function ProjectInfo({ projectName }: { projectName?: string }) {
         <div className="project-info-container">
             <h2>Project Environment Variables</h2>
             {message && <p>{message}</p>}
-            {envVars.length > 0 ? (
+            {envVars.length > 0 && (
                 <table className="env-vars-table">
                     <thead>
                         <tr>
@@ -78,8 +79,6 @@ function ProjectInfo({ projectName }: { projectName?: string }) {
                         ))}
                     </tbody>
                 </table>
-            ) : (
-                <p>No environment variables found.</p>
             )}
         </div>
     );
