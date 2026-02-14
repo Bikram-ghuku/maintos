@@ -7,7 +7,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tokio::fs;
 
-use crate::{auth::{self, Auth}, env::EnvVars, github};
+use crate::{
+    auth::{self, Auth},
+    env::EnvVars,
+    github,
+};
 
 pub(crate) type Res<T> = Result<T, anyhow::Error>;
 
@@ -25,7 +29,7 @@ pub async fn check_access(
     env_vars: &EnvVars,
     auth: &Auth,
     project_name: &str,
-) -> Res<Deployment> {
+) -> Res<Option<Deployment>> {
     let deployments_dir = &env_vars.deployments_dir;
 
     let client = reqwest::Client::new();
@@ -66,19 +70,24 @@ pub async fn check_access(
         .await?;
 
         // `None` means the user is not a collaborator
-        if let Some(role) = collab_role.as_deref()
+        return if let Some(role) = collab_role.as_deref()
             && (role == "maintain" || role == "admin")
         {
-            return Ok(Deployment {
+            Ok(Some(Deployment {
                 name: project_name.to_string(),
                 repo_url,
                 repo_owner,
                 repo_name,
-            });
-        }
+            }))
+        } else {
+            Ok(None)
+        };
     }
+
     Err(anyhow!(
-        "User does not have permission to access this project."
+        "Error checking user {}'s access to project {}.",
+        auth.username,
+        project_name
     ))
 }
 
@@ -95,7 +104,7 @@ pub async fn get_deployments(env_vars: &EnvVars, auth: &Auth) -> Res<Vec<Deploym
                 .file_name()
                 .into_string()
                 .map_err(|_| anyhow!("Invalid project name"))?;
-            if let Some(deployment) = check_access(env_vars, &auth, &project_name).await.ok() {
+            if let Some(deployment) = check_access(env_vars, &auth, &project_name).await? {
                 deployments.push(deployment);
             }
         }
