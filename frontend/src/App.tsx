@@ -7,7 +7,7 @@ import { useState } from "react";
 import type { Deployment } from "./types/deployments";
 
 function App() {
-	const deploymentState = useState<Deployment[] | null>(null);
+	const deploymentState = useState<Deployment[] | undefined | null>(null);
 
 	return (
 		<>
