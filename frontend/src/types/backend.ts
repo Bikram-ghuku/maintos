@@ -1,3 +1,5 @@
+import type { Deployment } from "./deployments";
+
 export type AllowedBackendMethods = "get" | "post";
 
 export interface IOkResponse<T> {
@@ -33,12 +35,7 @@ export interface IEndpointTypes {
 	};
 	deployments: {
 		request: null;
-		response: {
-			deployment_dir: string;
-			repo_owner: string;
-			repo_name: string;
-			repo_url: string;
-		}[];
+		response: Deployment[];
 	};
 	get_env: {
 		request: {
