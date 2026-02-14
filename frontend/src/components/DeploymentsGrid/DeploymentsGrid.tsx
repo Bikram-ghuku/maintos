@@ -13,6 +13,7 @@ function DeploymentsGrid() {
 	const [message, setMessage] = useState<string>("");
 
 	const fetchDeployments = async () => {
+		setMessage("Fetching deployments...");
 		const resp = await makeRequest("deployments", "get", null, auth.jwt);
 
 		if (resp.status == "success") {
