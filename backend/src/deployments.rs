@@ -51,7 +51,8 @@ impl Deployment {
             .ok_or(anyhow!(
                 "Error parsing repository remote URL: Repo name not found."
             ))?
-            .to_string();
+            .to_string()
+            .replace(".git", "");
 
         Ok(Self {
             deployment_path,
