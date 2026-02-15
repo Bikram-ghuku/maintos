@@ -7,6 +7,7 @@ use tracing_subscriber::prelude::*;
 use crate::utils::Res;
 
 mod auth;
+mod deployments;
 mod env;
 mod github;
 mod routing;

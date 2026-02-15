@@ -1,10 +1,18 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
-import './styles/common_styles.scss';
-import type { IconType } from 'react-icons';
+import "./styles/common_styles.scss";
+import type { IconType } from "react-icons";
+import { useAuthContext } from "../../utils/auth";
 
 export function Footer() {
-	return <h3 className="meta-footer">Made with ❤️ and {"</>"} by <a href="https://github.com/metakgp/maintos" target="_blank">MetaKGP</a></h3>;
+	return (
+		<h3 className="meta-footer">
+			Made with ❤️ and {"</>"} by{" "}
+			<a href="https://github.com/metakgp/maintos" target="_blank">
+				MetaKGP
+			</a>
+		</h3>
+	);
 }
 
 interface ILinkCommonProps {
@@ -24,24 +32,49 @@ interface IHeaderProps {
 	link?: ILinkTo | ILinkClick;
 }
 export function Header(props: IHeaderProps) {
-	const linkButtonInnerHtml = props.link && <><props.link.icon size="1rem" />{props.link.button_text}</>;
+	const linkButtonInnerHtml = props.link && (
+		<>
+			<props.link.icon size="1rem" />
+			{props.link.button_text}
+		</>
+	);
+	const auth = useAuthContext();
 
-	return <div className="header">
-		<h1>Maintos - {props.title}</h1>
-		{props.subtitle && <p>
-			<i>{props.subtitle}</i>
-		</p>}
-		{
-			props.link &&
-			<h3 className="header-link">
-				{props.link.text} {
-					'to' in props.link ?
-						<Link to={props.link.to} className="header-link-btn">{linkButtonInnerHtml}</Link> :
-						<button onClick={props.link.onClick} className="header-link-btn">{linkButtonInnerHtml}</button>
-				}
-			</h3>
-		}
-	</div>;
+	return (
+		<div className="header">
+			<h1>Maintos - {props.title}</h1>
+			{props.subtitle && (
+				<p>
+					<i>{props.subtitle}</i>
+				</p>
+			)}
+			{props.link && (
+				<h3 className="header-link">
+					{props.link.text}{" "}
+					{"to" in props.link ? (
+						<Link to={props.link.to} className="header-link-btn">
+							{linkButtonInnerHtml}
+						</Link>
+					) : (
+						<button
+							onClick={props.link.onClick}
+							className="header-link-btn"
+						>
+							{linkButtonInnerHtml}
+						</button>
+					)}
+				</h3>
+			)}
+			{auth.isAuthenticated && (
+				<button
+					onClick={auth.logout}
+					className="header-link-btn"
+				>
+					Logout
+				</button>
+			)}
+		</div>
+	);
 }
 
 export function Navbar() {

@@ -5,8 +5,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use hmac::{Hmac, Mac, digest::InvalidLength};
-use sha2::Sha256;
+use jsonwebtoken::{DecodingKey, EncodingKey};
 
 #[derive(Parser, Clone)]
 pub struct EnvVars {
@@ -42,7 +41,10 @@ pub struct EnvVars {
 
 impl EnvVars {
     /// Returns the JWT signing key
-    pub fn get_jwt_key(&self) -> Result<Hmac<Sha256>, InvalidLength> {
-        Hmac::new_from_slice(self.jwt_secret.as_bytes())
+    pub fn get_jwt_key(&self) -> (EncodingKey, DecodingKey) {
+        (
+            EncodingKey::from_secret(self.jwt_secret.as_ref()),
+            DecodingKey::from_secret(self.jwt_secret.as_ref()),
+        )
     }
 }

@@ -5,14 +5,14 @@ import ProjectInfo from "../components/ProjectInfo/ProjectInfo";
 import { useParams } from "react-router-dom";
 
 function ProjectPage() {
-    const auth = useAuthContext();
+	const auth = useAuthContext();
 
     useEffect(() => {
         if (!auth.isAuthenticated) {
             window.location.assign("/");
         }
     }, []);
-    
+
     const { projectName } = useParams();
 
     return (

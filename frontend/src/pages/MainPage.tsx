@@ -1,9 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "../components/Common/Common";
 import { OAUTH_LOGIN_URL, useAuthContext } from "../utils/auth";
 import DeploymentsGrid from "../components/DeploymentsGrid/DeploymentsGrid";
+import type { Deployment } from "../types/deployments";
 
-function MainPage() {
+function MainPage(props: {
+	deploymentState: ReturnType<typeof useState<Deployment[] | null>>;
+}) {
 	const auth = useAuthContext();
 
 	useEffect(() => {
@@ -22,7 +25,9 @@ function MainPage() {
 						: `Not authenticated.`
 				}
 			/>
-			{auth.isAuthenticated && <DeploymentsGrid />}
+			{auth.isAuthenticated && (
+				<DeploymentsGrid deploymentState={props.deploymentState} />
+			)}
 		</>
 	);
 }
