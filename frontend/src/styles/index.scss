@@ -73,6 +73,20 @@ select,
 	background-color: $surface-1;
 	color: $fg-color;
 }
+button {
+	background-color: $accent-color;
+	color: $fg-color;
+	border: none;
+	padding: 0.2rem 0.5rem;
+	border-radius: 4px;
+	cursor: pointer;
+	font-family: inherit;
+	font-size: 1rem;
+
+	&:hover {
+		background-color: $accent-color-darker;
+	}
+}
 
 .toast {
 	background-color: $surface-2 !important;

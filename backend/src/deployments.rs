@@ -1,13 +1,14 @@
 use std::{path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
+use bollard::Docker;
 use git2::Repository;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 use tokio::fs;
 
-use crate::{auth::Auth, env::EnvVars, github, utils::Res};
+use crate::{auth::Auth, env::EnvVars, github, utils::{self, Res}};
 
 #[derive(Deserialize, Serialize)]
 /// All the information for a repository
@@ -109,6 +110,43 @@ impl Deployment {
         } else {
             Ok(None)
         }
+    }
+
+    /// Get the status of all containers in a deployment
+    pub async fn get_containers_status(&self, docker: &Docker) -> Res<Value> {
+        let project_settings = self.get_settings().await?;
+        let dir_path = self
+            .deployment_path
+            .join(&project_settings.deploy_dir);
+
+        let containers = utils::get_containers(docker, dir_path.to_str().unwrap()).await?;
+
+        Ok(json!(containers.iter().map(|container| {
+            let service = container
+                .labels
+                .as_ref()
+                .and_then(|labels| labels.get("com.docker.compose.service"))
+                .cloned()
+                .unwrap_or_else(|| "unknown".to_string());
+
+            let state = container
+                .state
+                .as_ref()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+
+            let status = container
+                .status
+                .as_ref()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+
+            json!({
+                "container": service,
+                "state": state,
+                "status": status,
+            })
+        }).collect::<Vec<Value>>() ))
     }
 }
 

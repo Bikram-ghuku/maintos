@@ -123,3 +123,28 @@ pub async fn get_env_vars(
         ))
     }
 }
+
+/// Gets the status of all containers in a deployment if the user has access to it
+pub async fn get_status(
+    State(state): HandlerState,
+    Extension(auth): Extension<Auth>,
+    Json(body): Json<EnvVarsReq>,
+) -> HandlerReturn<Value> {
+    let project_name = body.project_name.as_str();
+    let deployment = Deployment::from_deployment_dir(&state.env_vars, project_name).await?;
+    let access = deployment.has_access(&auth).await?;
+
+    if access {
+        let container_status = deployment.get_containers_status(&state.docker).await?;
+
+        Ok(BackendResponse::ok(
+            "Successfully fetched container status.".into(),
+            container_status,
+        ))
+    } else {
+        Ok(BackendResponse::error(
+            "Access denied.".into(),
+            StatusCode::UNAUTHORIZED,
+        ))
+    }
+}
