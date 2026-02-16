@@ -19,10 +19,13 @@ pub async fn get_deployments(env_vars: &EnvVars) -> Res<Vec<Deployment>> {
                 .into_string()
                 .map_err(|_| anyhow!("Invalid project name"))?;
 
-            let deployment = Deployment::from_deployment_dir(env_vars, &deployment_dir).await?;
+            let git_path = deployments_dir.join(&deployment_dir).join(".git");
+            if git_path.exists() {
+                let deployment = Deployment::from_deployment_dir(env_vars, &deployment_dir).await?;
 
-            if deployment.repo_owner == env_vars.gh_org_name {
-                deployments.push(Deployment::from_deployment_dir(env_vars, &deployment_dir).await?);
+                if deployment.repo_owner == env_vars.gh_org_name {
+                    deployments.push(deployment);
+                }
             }
         }
     }

@@ -65,14 +65,19 @@ export function Header(props: IHeaderProps) {
 					)}
 				</h3>
 			)}
-			{auth.isAuthenticated && (
-				<button
-					onClick={auth.logout}
-					className="header-link-btn"
-				>
-					Logout
-				</button>
-			)}
+			<div className="link-btns">
+				{auth.isAuthenticated && (
+					<button
+						onClick={auth.logout}
+						className="header-link-btn"
+					>
+						Logout
+					</button>
+				)}
+				<Link to="/">
+					<button className="header-link-btn">Go Home</button>
+				</Link>
+			</div>
 		</div>
 	);
 }

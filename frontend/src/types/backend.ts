@@ -42,5 +42,15 @@ export interface IEndpointTypes {
 			project_name: string;
 		}
 		response: Record<string, string>
-	}
+	};
+	get_status: {
+		request: {
+			project_name: string;
+		}
+		response: {
+			container: string;
+			state: "" | "unknown" | "created" | "restarting" | "running" | "removing" | "paused" | "exited" | "dead";
+			status: string;
+		}[]
+	};
 }

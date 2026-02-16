@@ -1,10 +1,11 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
+use bollard::{Docker, query_parameters::ListContainersOptionsBuilder, secret::ContainerSummary};
 use git2::Repository;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 use tokio::fs;
 
 use crate::{auth::Auth, env::EnvVars, github, utils::Res};
@@ -109,6 +110,72 @@ impl Deployment {
         } else {
             Ok(None)
         }
+    }
+
+    /// Get a list of all containers in the deployment
+    pub async fn get_containers(&self, docker: &Docker) -> Res<Vec<ContainerSummary>> {
+        let project_settings = self.get_settings().await?;
+        let compose_file_path = self
+            .deployment_path
+            .join(&project_settings.deploy_dir)
+            .join("docker-compose.yaml"); // TODO: will come from project settings
+
+        let mut filter = HashMap::new();
+        filter.insert(
+            "label".to_string(),
+            vec![format!(
+                "com.docker.compose.project.config_files={}",
+                compose_file_path.to_str().unwrap()
+            )],
+        );
+
+        let containers = docker
+            .list_containers(Some(
+                ListContainersOptionsBuilder::default()
+                    .all(true)
+                    .filters(&filter)
+                    .build(),
+            ))
+            .await?;
+
+        Ok(containers)
+    }
+
+    /// Get the status of all containers in a deployment
+    pub async fn get_containers_status(&self, docker: &Docker) -> Res<Value> {
+        let containers = self.get_containers(docker).await?;
+
+        Ok(json!(
+            containers
+                .iter()
+                .map(|container| {
+                    let service = container
+                        .labels
+                        .as_ref()
+                        .and_then(|labels| labels.get("com.docker.compose.service"))
+                        .cloned()
+                        .unwrap_or_else(|| "unknown".to_string());
+
+                    let state = container
+                        .state
+                        .as_ref()
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| "unknown".to_string());
+
+                    let status = container
+                        .status
+                        .as_ref()
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| "unknown".to_string());
+
+                    json!({
+                        "container": service,
+                        "state": state,
+                        "status": status,
+                    })
+                })
+                .collect::<Vec<Value>>()
+        ))
     }
 }
 

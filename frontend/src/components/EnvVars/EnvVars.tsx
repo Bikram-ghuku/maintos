@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuthContext } from "../../utils/auth";
 import { makeRequest } from "../../utils/backend";
-import "./project_info.scss";
+import "./env_vars.scss";
 import { FaCopy, FaEye, FaEyeSlash } from "react-icons/fa6";
 
-function ProjectInfo({ projectName }: { projectName?: string }) {
+function EnvVars({ projectName }: { projectName?: string }) {
     const auth = useAuthContext();
     const [envVars, setEnvVars] = useState<
         { key: string; value: string }[]
@@ -36,7 +36,7 @@ function ProjectInfo({ projectName }: { projectName?: string }) {
     }, []);
 
     return (
-        <div className="project-info-container">
+        <div className="env-vars-container">
             <h2>Project Environment Variables</h2>
             {message && <p>{message}</p>}
             {envVars.length > 0 && (
@@ -84,4 +84,4 @@ function ProjectInfo({ projectName }: { projectName?: string }) {
     );
 }
 
-export default ProjectInfo;
+export default EnvVars;

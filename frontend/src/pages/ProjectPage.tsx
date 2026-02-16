@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { Header } from "../components/Common/Common";
 import { useAuthContext } from "../utils/auth";
-import ProjectInfo from "../components/ProjectInfo/ProjectInfo";
 import { useParams } from "react-router-dom";
+import EnvVars from "../components/EnvVars/EnvVars";
+import DeploymentStatus from "../components/DeploymentStatus/DeploymentStatus";
 
 function ProjectPage() {
 	const auth = useAuthContext();
@@ -25,7 +26,10 @@ function ProjectPage() {
                         : `Not authenticated.`
                 }
             />
-            {auth.isAuthenticated && <ProjectInfo projectName={projectName} />}
+            {auth.isAuthenticated && <>
+                <EnvVars projectName={projectName} />
+                <DeploymentStatus projectName={projectName} />    
+            </>}
         </>
     );
 }
