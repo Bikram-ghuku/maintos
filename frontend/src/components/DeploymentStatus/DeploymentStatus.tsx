@@ -27,7 +27,6 @@ function DeploymentStatus({ projectName }: { projectName?: string }) {
 
     if (resp.status == "success") {
       setDeploymentStatus(resp.data);
-      console.log(resp);
       setMessage("");
     } else {
       setMessage(
