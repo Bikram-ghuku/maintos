@@ -18,7 +18,7 @@ pub async fn get_deployments(env_vars: &EnvVars) -> Res<Vec<Deployment>> {
                 .file_name()
                 .into_string()
                 .map_err(|_| anyhow!("Invalid project name"))?;
-            
+
             let git_path = deployments_dir.join(&deployment_dir).join(".git");
             if git_path.exists() {
                 let deployment = Deployment::from_deployment_dir(env_vars, &deployment_dir).await?;
