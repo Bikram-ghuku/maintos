@@ -8,16 +8,16 @@ import { capitalize } from "../../utils/utils";
 function DeploymentStatus({ projectName }: { projectName?: string }) {
   const auth = useAuthContext();
 
-  const [projectStatus, setProjectStatus] =
+  const [deploymentStatus, setDeploymentStatus] =
     useState<IEndpointTypes["get_status"]["response"]>();
   const [message, setMessage] = useState<string>("");
 
-  const fetchProjectStatus = async () => {
+  const fetchDeploymentStatus = async () => {
     if (!projectName) {
       setMessage("Project name not found.");
       return;
     }
-    setMessage("Fetching project status...");
+    setMessage("Fetching deployment status...");
     const resp = await makeRequest(
       "get_status",
       "post",
@@ -26,7 +26,7 @@ function DeploymentStatus({ projectName }: { projectName?: string }) {
     );
 
     if (resp.status == "success") {
-      setProjectStatus(resp.data);
+      setDeploymentStatus(resp.data);
       console.log(resp);
       setMessage("");
     } else {
@@ -38,7 +38,7 @@ function DeploymentStatus({ projectName }: { projectName?: string }) {
 
   useEffect(() => {
     if (auth.isAuthenticated) {
-      fetchProjectStatus();
+      fetchDeploymentStatus();
     }
   }, []);
 
@@ -46,7 +46,7 @@ function DeploymentStatus({ projectName }: { projectName?: string }) {
     <div className="deployment-status-container">
       <div className="header">
         <h2>Deployment Status</h2>
-        <button className="reload-button" onClick={fetchProjectStatus}>
+        <button className="reload-button" onClick={fetchDeploymentStatus}>
           Reload Status
         </button>
       </div>
@@ -54,9 +54,9 @@ function DeploymentStatus({ projectName }: { projectName?: string }) {
       {message && <p className="message">{message}</p>}
 
       <div className="container-grid">
-        {projectStatus &&
-          projectStatus.length > 0 &&
-          projectStatus.map((container) => (
+        {deploymentStatus &&
+          deploymentStatus.length > 0 &&
+          deploymentStatus.map((container) => (
             <div key={container.container} className="container-info">
               <h3 className="container-name">{container.container}</h3>
               <p>Status: {container.status}</p>

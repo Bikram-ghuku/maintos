@@ -1,14 +1,14 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
-use bollard::Docker;
+use bollard::{Docker, query_parameters::ListContainersOptionsBuilder, secret::ContainerSummary};
 use git2::Repository;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use tokio::fs;
 
-use crate::{auth::Auth, env::EnvVars, github, utils::{self, Res}};
+use crate::{auth::Auth, env::EnvVars, github, utils::Res};
 
 #[derive(Deserialize, Serialize)]
 /// All the information for a repository
@@ -112,14 +112,31 @@ impl Deployment {
         }
     }
 
-    /// Get the status of all containers in a deployment
-    pub async fn get_containers_status(&self, docker: &Docker) -> Res<Value> {
+    /// Get a list of all containers in the deployment
+    pub async fn get_containers(&self, docker: &Docker) -> Res<Vec<ContainerSummary>> {
         let project_settings = self.get_settings().await?;
         let dir_path = self
             .deployment_path
             .join(&project_settings.deploy_dir);
 
-        let containers = utils::get_containers(docker, dir_path.to_str().unwrap()).await?;
+        let mut filter = HashMap::new();
+        filter.insert("label".to_string(), vec![format!("com.docker.compose.project.working_dir={}", dir_path.to_str().unwrap())]);
+
+        let containers = docker
+            .list_containers(Some(
+                ListContainersOptionsBuilder::default().all(true)
+                .filters(&filter)
+                .build(),
+            ))
+            .await?;
+
+        Ok(containers)
+    }
+
+
+    /// Get the status of all containers in a deployment
+    pub async fn get_containers_status(&self, docker: &Docker) -> Res<Value> {
+        let containers = self.get_containers(docker).await?;
 
         Ok(json!(containers.iter().map(|container| {
             let service = container
