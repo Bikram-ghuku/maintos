@@ -118,7 +118,7 @@ impl Deployment {
         let compose_file_path = self
             .deployment_path
             .join(&project_settings.deploy_dir)
-            .join("docker-compose.yml"); // TODO: will come from project settings
+            .join("docker-compose.yaml"); // TODO: will come from project settings
 
         let mut filter = HashMap::new();
         filter.insert("label".to_string(), vec![format!("com.docker.compose.project.config_files={}", compose_file_path.to_str().unwrap())]);
