@@ -93,10 +93,7 @@ impl Deployment {
     /// Get the environment variables for a project
     pub async fn get_env(&self) -> Res<Option<Map<String, Value>>> {
         let project_settings = self.get_settings().await?;
-        let env_file_path = self
-            .deployment_path
-            .join(&project_settings.deploy_dir)
-            .join(".env");
+        let env_file_path = project_settings.env_file.ok_or(anyhow!("Error: No environment file found for this deployment."))?;
 
         if env_file_path.exists() {
             let parsed_env = dotenvy::from_path_iter(env_file_path)?
@@ -115,10 +112,7 @@ impl Deployment {
     /// Get a list of all containers in the deployment
     pub async fn get_containers(&self, docker: &Docker) -> Res<Vec<ContainerSummary>> {
         let project_settings = self.get_settings().await?;
-        let compose_file_path = self
-            .deployment_path
-            .join(&project_settings.deploy_dir)
-            .join("docker-compose.yaml"); // TODO: will come from project settings
+        let compose_file_path = project_settings.compose_file;
 
         let mut filter = HashMap::new();
         filter.insert(
@@ -179,19 +173,23 @@ impl Deployment {
     }
 }
 
-#[derive(Deserialize, Serialize)]
-/// Settings for a deployment, obtained from its `.maint` file
+/// Settings for a deployment
 pub struct DeploymentSettings {
-    /// Subdirectory which is deployed (relative to the project root)
-    pub deploy_dir: String,
+    /// Path to the compose file
+    pub compose_file: PathBuf,
+    /// Path to the environment variables file
+    pub env_file: Option<PathBuf>,
 }
 
-impl Default for DeploymentSettings {
-    fn default() -> Self {
-        DeploymentSettings {
-            deploy_dir: String::from("."),
-        }
-    }
+/// Serialised deployment settings from a `.maint` file
+#[derive(Deserialize, Serialize, Default)]
+pub struct RawDeploymentSettings {
+    /// Subdirectory which is deployed (relative to the project root)
+    pub deploy_dir: Option<String>,
+    /// Relative path to the compose file (default: "docker-compose.yaml", "docker-compose.yml" - whichever exists)
+    pub compose_file: Option<String>,
+    /// Relative path to the environment file (default: ".env")
+    pub env_file: Option<String>,
 }
 
 impl DeploymentSettings {
@@ -199,12 +197,53 @@ impl DeploymentSettings {
     pub async fn from_deployment(deployment: &Deployment) -> Res<Self> {
         let maint_file_path = deployment.deployment_path.join(".maint");
 
-        if let Ok(maint_file_contents) = fs::read_to_string(maint_file_path).await {
-            Ok(Self {
-                deploy_dir: maint_file_contents.trim().into(),
-            })
-        } else {
-            Ok(Self::default())
+        let raw_settings =
+            if let Ok(maint_file_contents) = fs::read_to_string(maint_file_path).await {
+                toml::from_str(&maint_file_contents)?
+            } else {
+                RawDeploymentSettings::default()
+            };
+        let deploy_dir = raw_settings.deploy_dir.unwrap_or_else(|| String::from("."));
+        let deploy_dir = deployment.deployment_path.join(deploy_dir);
+        if !deploy_dir.exists() {
+            return Err(anyhow!("Error: Deploy directory does not exist."));
         }
+
+        let compose_file = if let Some(compose_file) = raw_settings.compose_file {
+            let compose_file = deploy_dir.join(compose_file);
+            if !compose_file.exists() {
+                return Err(anyhow!("Error: Compose file does not exist."));
+            }
+            compose_file
+        } else if deploy_dir
+            .join("docker-compose.yaml")
+            .exists()
+        {
+            deploy_dir.join("docker-compose.yaml")
+        } else if deploy_dir
+            .join("docker-compose.yml")
+            .exists()
+        {
+            deploy_dir.join("docker-compose.yml")
+        } else {
+            return Err(anyhow!("Error: Compose file does not exist."));
+        };
+
+        let env_file = if let Some(env_file) = raw_settings.env_file {
+            let env_file = deploy_dir.join(env_file);
+            if !env_file.exists() {
+                return Err(anyhow!("Error: Environment file does not exist."));
+            }
+            Some(env_file)
+        } else if deploy_dir.join(".env").exists() {
+            Some(deploy_dir.join(".env"))
+        } else {
+            None
+        };
+
+        Ok(Self {
+            compose_file,
+            env_file,
+        })
     }
 }
