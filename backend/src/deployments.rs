@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use anyhow::anyhow;
 use bollard::{Docker, query_parameters::ListContainersOptionsBuilder, secret::ContainerSummary};
@@ -7,6 +11,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use tokio::fs;
+use toml::Table;
 
 use crate::{auth::Auth, env::EnvVars, github, utils::Res};
 
@@ -93,7 +98,9 @@ impl Deployment {
     /// Get the environment variables for a project
     pub async fn get_env(&self) -> Res<Option<Map<String, Value>>> {
         let project_settings = self.get_settings().await?;
-        let env_file_path = project_settings.env_file.ok_or(anyhow!("Error: No environment file found for this deployment."))?;
+        let env_file_path = project_settings.env_file.ok_or(anyhow!(
+            "Error: No environment file found for this deployment."
+        ))?;
 
         if env_file_path.exists() {
             let parsed_env = dotenvy::from_path_iter(env_file_path)?
@@ -181,69 +188,79 @@ pub struct DeploymentSettings {
     pub env_file: Option<PathBuf>,
 }
 
-/// Serialised deployment settings from a `.maint` file
-#[derive(Deserialize, Serialize, Default)]
-pub struct RawDeploymentSettings {
-    /// Subdirectory which is deployed (relative to the project root)
-    pub deploy_dir: Option<String>,
-    /// Relative path to the compose file (default: "docker-compose.yaml", "docker-compose.yml" - whichever exists)
-    pub compose_file: Option<String>,
-    /// Relative path to the environment file (default: ".env")
-    pub env_file: Option<String>,
-}
-
 impl DeploymentSettings {
     /// Get the project settings (stored in .maint on the top level of the project directory)
     pub async fn from_deployment(deployment: &Deployment) -> Res<Self> {
         let maint_file_path = deployment.deployment_path.join(".maint");
+        let raw_settings = match fs::read_to_string(maint_file_path).await {
+            Ok(contents) => contents.parse::<Table>(),
+            Err(_) => Ok(Table::new()),
+        }?;
 
-        let raw_settings =
-            if let Ok(maint_file_contents) = fs::read_to_string(maint_file_path).await {
-                toml::from_str(&maint_file_contents)?
-            } else {
-                RawDeploymentSettings::default()
-            };
-        let deploy_dir = raw_settings.deploy_dir.unwrap_or_else(|| String::from("."));
-        let deploy_dir = deployment.deployment_path.join(deploy_dir);
-        if !deploy_dir.exists() {
-            return Err(anyhow!("Error: Deploy directory does not exist."));
-        }
+        let deploy_dir = Self::resolve_deploy_dir(&deployment.deployment_path, &raw_settings)?;
 
-        let compose_file = if let Some(compose_file) = raw_settings.compose_file {
-            let compose_file = deploy_dir.join(compose_file);
-            if !compose_file.exists() {
-                return Err(anyhow!("Error: Compose file does not exist."));
-            }
-            compose_file
-        } else if deploy_dir
-            .join("docker-compose.yaml")
-            .exists()
-        {
-            deploy_dir.join("docker-compose.yaml")
-        } else if deploy_dir
-            .join("docker-compose.yml")
-            .exists()
-        {
-            deploy_dir.join("docker-compose.yml")
-        } else {
-            return Err(anyhow!("Error: Compose file does not exist."));
-        };
-
-        let env_file = if let Some(env_file) = raw_settings.env_file {
-            let env_file = deploy_dir.join(env_file);
-            if !env_file.exists() {
-                return Err(anyhow!("Error: Environment file does not exist."));
-            }
-            Some(env_file)
-        } else if deploy_dir.join(".env").exists() {
-            Some(deploy_dir.join(".env"))
-        } else {
-            None
-        };
+        let compose_file = Self::resolve_compose_file(&deploy_dir, &raw_settings)?;
+        let env_file = Self::resolve_env_file(&deploy_dir, &raw_settings);
 
         Ok(Self {
             compose_file,
             env_file,
         })
+    }
+
+    /// Resolve the deployment directory
+    fn resolve_deploy_dir(deployment_path: &Path, settings: &Table) -> Res<PathBuf> {
+        let deploy_dir = settings
+            .get("deploy_dir")
+            .and_then(|v| v.as_str())
+            .unwrap_or(".");
+
+        let deploy_dir = deployment_path.join(deploy_dir);
+        if !deploy_dir.exists() {
+            return Err(anyhow!(
+                "Deploy directory does not exist: {}",
+                deploy_dir.display()
+            ));
+        }
+        Ok(deploy_dir)
+    }
+
+    /// Resolve compose file path
+    fn resolve_compose_file(deploy_dir: &Path, settings: &Table) -> Res<PathBuf> {
+        if let Some(compose_file) = settings.get("compose_file").and_then(|v| v.as_str()) {
+            let compose_file = deploy_dir.join(compose_file);
+            if compose_file.exists() {
+                return Ok(compose_file);
+            }
+            return Err(anyhow!(
+                "Configured compose file does not exist: {}",
+                compose_file.display()
+            ));
+        }
+        for filename in &["docker-compose.yaml", "docker-compose.yml"] {
+            let path = deploy_dir.join(filename);
+            if path.exists() {
+                return Ok(path);
+            }
+        }
+        Err(anyhow!(
+            "No compose file found in {}.",
+            deploy_dir.display()
+        ))
+    }
+
+    /// Resolve environment file path
+    fn resolve_env_file(deploy_dir: &Path, settings: &Table) -> Option<PathBuf> {
+        if let Some(env_file) = settings.get("env_file").and_then(|v| v.as_str()) {
+            let env_file = deploy_dir.join(env_file);
+            if env_file.exists() {
+                return Some(env_file);
+            }
+        }
+        let default_env = deploy_dir.join(".env");
+        if default_env.exists() {
+            return Some(default_env);
+        }
+        None
     }
 }
