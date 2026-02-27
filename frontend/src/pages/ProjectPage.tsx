@@ -4,7 +4,6 @@ import { useAuthContext } from "../utils/auth";
 import { useParams } from "react-router-dom";
 import EnvVars from "../components/EnvVars/EnvVars";
 import DeploymentStatus from "../components/DeploymentStatus/DeploymentStatus";
-import StartStopDeployment from "../components/StartStop/StartStop";
 
 function ProjectPage() {
 	const auth = useAuthContext();
@@ -29,7 +28,6 @@ function ProjectPage() {
             />
             {auth.isAuthenticated && <>
                 <DeploymentStatus projectName={projectName} />
-                <StartStopDeployment projectName={projectName} /> 
                 <EnvVars projectName={projectName} />
             </>}
         </>
