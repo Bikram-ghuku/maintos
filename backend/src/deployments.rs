@@ -1,3 +1,5 @@
+//! Structs and functions for interacting with deployments
+
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -5,7 +7,7 @@ use std::{
 };
 
 use anyhow::anyhow;
-use bollard::{Docker, query_parameters::ListContainersOptionsBuilder, secret::ContainerSummary};
+use bollard::{Docker, query_parameters::{ListContainersOptionsBuilder, StartContainerOptions, StopContainerOptions}, secret::ContainerSummary};
 use git2::Repository;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -176,6 +178,34 @@ impl Deployment {
                 })
                 .collect::<Vec<Value>>()
         ))
+    }
+
+    /// Stop all containers in a deployment
+    pub async fn down(&self, docker: &Docker) -> Res<()> {
+        let containers = self.get_containers(docker).await?;
+
+        for container in containers {
+            if let Some(id) = container.id {
+                let options: Option<StopContainerOptions> = None;
+                docker.stop_container(&id, options).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Start all containers in a deployment
+    pub async fn up(&self, docker: &Docker) -> Res<()> {
+        let containers = self.get_containers(docker).await?;
+
+        for container in containers {
+            if let Some(id) = container.id {
+                let options: Option<StartContainerOptions> = None;
+                docker.start_container(&id, options).await?;
+            }
+        }
+        
+        Ok(())
     }
 }
 
