@@ -50,6 +50,10 @@ function DeploymentStatus({ projectName }: { projectName?: string }) {
             setControlMessage("Project name not found.");
             return;
         }
+		let confirm = window.confirm("Are you sure you want to start the deployment?");
+		if (!confirm) {
+			return;
+		}
         setControlMessage("Starting deployment...");
         setDisabled(true);
         const resp = await makeRequest(
@@ -77,6 +81,10 @@ function DeploymentStatus({ projectName }: { projectName?: string }) {
             setControlMessage("Project name not found.");
             return;
         }
+		let confirm = window.confirm("Are you sure you want to stop the deployment?");
+		if (!confirm) {
+			return;
+		}
         setControlMessage("Stopping deployment...");
         setDisabled(true);
         const resp = await makeRequest(
