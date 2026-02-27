@@ -86,40 +86,19 @@ pub async fn deployments(State(state): HandlerState) -> HandlerReturn<Vec<Deploy
     ))
 }
 
-#[derive(Deserialize)]
-/// The request format for the get environment variables endpoint
-pub struct EnvVarsReq {
-    project_name: String,
-}
-
 /// Gets the environment variables for a project if the user has access to it
-pub async fn get_env_vars(
-    State(state): HandlerState,
-    Extension(auth): Extension<Auth>,
-    Json(body): Json<EnvVarsReq>,
-) -> HandlerReturn<Value> {
-    let project_name = body.project_name.as_str();
-    let deployment = Deployment::from_deployment_dir(&state.env_vars, project_name).await?;
-    let access = deployment.has_access(&auth).await?;
+pub async fn get_env_vars(Extension(deployment): Extension<Deployment>) -> HandlerReturn<Value> {
+    let env_vars = deployment.get_env().await?;
 
-    if access {
-        let env_vars = deployment.get_env().await?;
-
-        if let Some(vars) = env_vars {
-            Ok(BackendResponse::ok(
-                "Successfully fetched environment variables.".into(),
-                vars.into(),
-            ))
-        } else {
-            Ok(BackendResponse::error(
-                "`.env` does not exist.".into(),
-                StatusCode::NOT_FOUND,
-            ))
-        }
+    if let Some(vars) = env_vars {
+        Ok(BackendResponse::ok(
+            "Successfully fetched environment variables.".into(),
+            vars.into(),
+        ))
     } else {
         Ok(BackendResponse::error(
-            "Access denied.".into(),
-            StatusCode::UNAUTHORIZED,
+            "`.env` does not exist.".into(),
+            StatusCode::NOT_FOUND,
         ))
     }
 }
@@ -127,24 +106,12 @@ pub async fn get_env_vars(
 /// Gets the status of all containers in a deployment if the user has access to it
 pub async fn get_status(
     State(state): HandlerState,
-    Extension(auth): Extension<Auth>,
-    Json(body): Json<EnvVarsReq>,
+    Extension(deployment): Extension<Deployment>,
 ) -> HandlerReturn<Value> {
-    let project_name = body.project_name.as_str();
-    let deployment = Deployment::from_deployment_dir(&state.env_vars, project_name).await?;
-    let access = deployment.has_access(&auth).await?;
+    let container_status = deployment.get_containers_status(&state.docker).await?;
 
-    if access {
-        let container_status = deployment.get_containers_status(&state.docker).await?;
-
-        Ok(BackendResponse::ok(
-            "Successfully fetched container status.".into(),
-            container_status,
-        ))
-    } else {
-        Ok(BackendResponse::error(
-            "Access denied.".into(),
-            StatusCode::UNAUTHORIZED,
-        ))
-    }
+    Ok(BackendResponse::ok(
+        "Successfully fetched container status.".into(),
+        container_status,
+    ))
 }

@@ -18,7 +18,7 @@ function EnvVars({ projectName }: { projectName?: string }) {
             return;
 		}
 		setMessage("Fetching project details...");
-        const resp = await makeRequest("get_env", "post", { project_name: projectName }, auth.jwt);
+        const resp = await makeRequest(`${projectName}/get_env`, "post", null, auth.jwt);
 
         if (resp.status == "success") {
             setEnvVars(Object.keys(resp.data).map((key) => ({ key, value: resp.data[key] })));
