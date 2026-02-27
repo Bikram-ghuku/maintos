@@ -32,10 +32,7 @@ pub fn get_router(env_vars: &EnvVars, docker: Arc<Docker>) -> axum::Router {
             "/{project_name}/get_status",
             axum::routing::post(handlers::get_status),
         )
-        .route(
-            "/{project_name}/stop",
-            axum::routing::post(handlers::stop),
-        )
+        .route("/{project_name}/stop", axum::routing::post(handlers::stop))
         .route(
             "/{project_name}/start",
             axum::routing::post(handlers::start),

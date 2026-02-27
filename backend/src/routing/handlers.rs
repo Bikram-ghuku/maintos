@@ -117,10 +117,10 @@ pub async fn get_status(
 }
 
 pub async fn stop(
-    State(state): HandlerState,
+    State(_state): HandlerState,
     Extension(deployment): Extension<Deployment>,
 ) -> HandlerReturn<Value> {
-    deployment.down(&state.docker).await?;
+    deployment.down().await?;
 
     Ok(BackendResponse::ok(
         "Successfully stopped containers.".into(),
@@ -129,10 +129,10 @@ pub async fn stop(
 }
 
 pub async fn start(
-    State(state): HandlerState,
+    State(_state): HandlerState,
     Extension(deployment): Extension<Deployment>,
 ) -> HandlerReturn<Value> {
-    deployment.up(&state.docker).await?;
+    deployment.up().await?;
 
     Ok(BackendResponse::ok(
         "Successfully started containers.".into(),

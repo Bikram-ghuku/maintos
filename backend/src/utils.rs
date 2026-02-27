@@ -21,7 +21,8 @@ pub async fn get_deployments(env_vars: &EnvVars) -> Res<Vec<Deployment>> {
                 .into_string()
                 .map_err(|_| anyhow!("Invalid project name"))?;
 
-            if let Ok(deployment) = Deployment::from_deployment_dir(env_vars, &deployment_dir).await {
+            if let Ok(deployment) = Deployment::from_deployment_dir(env_vars, &deployment_dir).await
+            {
                 deployments.push(deployment);
             }
         }
