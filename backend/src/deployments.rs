@@ -98,22 +98,21 @@ impl Deployment {
     /// Get the environment variables for a project
     pub async fn get_env(&self) -> Res<Option<Map<String, Value>>> {
         let project_settings = self.get_settings().await?;
-        let env_file_path = project_settings.env_file.ok_or(anyhow!(
-            "Error: No environment file found for this deployment."
-        ))?;
 
-        if env_file_path.exists() {
-            let parsed_env = dotenvy::from_path_iter(env_file_path)?
-                .collect::<Result<Vec<(String, String)>, dotenvy::Error>>()?;
+        project_settings
+            .env_file
+            .map(|env_path| {
+                // Ideally the env_path should exist as it is checked while parsing. If it doesn't the dotenv parse function should catch that error.
+                let parsed_env = dotenvy::from_path_iter(env_path)?
+                    .collect::<Result<Vec<(String, String)>, dotenvy::Error>>()?;
 
-            Ok(Some(Map::from_iter(
-                parsed_env
-                    .into_iter()
-                    .map(|(key, value)| (key, Value::String(value))),
-            )))
-        } else {
-            Ok(None)
-        }
+                Ok(Map::from_iter(
+                    parsed_env
+                        .into_iter()
+                        .map(|(key, value)| (key, Value::String(value))),
+                ))
+            })
+            .transpose()
     }
 
     /// Get a list of all containers in the deployment
@@ -198,7 +197,6 @@ impl DeploymentSettings {
         }?;
 
         let deploy_dir = Self::resolve_deploy_dir(&deployment.deployment_path, &raw_settings)?;
-
         let compose_file = Self::resolve_compose_file(&deploy_dir, &raw_settings)?;
         let env_file = Self::resolve_env_file(&deploy_dir, &raw_settings);
 
@@ -216,33 +214,38 @@ impl DeploymentSettings {
             .unwrap_or(".");
 
         let deploy_dir = deployment_path.join(deploy_dir);
-        if !deploy_dir.exists() {
-            return Err(anyhow!(
+        if deploy_dir.exists() {
+            Ok(deploy_dir)
+        } else {
+            Err(anyhow!(
                 "Deploy directory does not exist: {}",
                 deploy_dir.display()
-            ));
+            ))
         }
-        Ok(deploy_dir)
     }
 
     /// Resolve compose file path
     fn resolve_compose_file(deploy_dir: &Path, settings: &Table) -> Res<PathBuf> {
         if let Some(compose_file) = settings.get("compose_file").and_then(|v| v.as_str()) {
             let compose_file = deploy_dir.join(compose_file);
-            if compose_file.exists() {
-                return Ok(compose_file);
-            }
-            return Err(anyhow!(
-                "Configured compose file does not exist: {}",
-                compose_file.display()
-            ));
+
+            return if compose_file.exists() {
+                Ok(compose_file)
+            } else {
+                Err(anyhow!(
+                    "Configured compose file does not exist: {}",
+                    compose_file.display()
+                ))
+            };
         }
+
         for filename in &["docker-compose.yaml", "docker-compose.yml"] {
             let path = deploy_dir.join(filename);
             if path.exists() {
                 return Ok(path);
             }
         }
+
         Err(anyhow!(
             "No compose file found in {}.",
             deploy_dir.display()
@@ -257,10 +260,12 @@ impl DeploymentSettings {
                 return Some(env_file);
             }
         }
+
         let default_env = deploy_dir.join(".env");
         if default_env.exists() {
-            return Some(default_env);
+            Some(default_env)
+        } else {
+            None
         }
-        None
     }
 }
