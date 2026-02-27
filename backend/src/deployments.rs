@@ -20,8 +20,9 @@ use crate::{auth::Auth, env::EnvVars, github, utils::Res};
 #[derive(Deserialize, Serialize, Clone)]
 /// All the information for a repository
 pub struct Deployment {
-    #[serde(skip_serializing)]
-    deployment_path: PathBuf,
+    #[serde(skip)]
+    /// The parsed `.maint` file
+    pub settings: DeploymentSettings,
 
     pub deployment_dir: String,
     pub repo_url: String,
@@ -33,7 +34,7 @@ impl Deployment {
     pub async fn from_deployment_dir(env_vars: &EnvVars, deployment_dir: &str) -> Res<Self> {
         let deployments_dir = &env_vars.deployments_dir;
 
-        let deployment_path = deployments_dir.join(deployment_dir);
+        let deployment_path = deployments_dir.join(deployment_dir).canonicalize()?;
         let repo = Repository::open(&deployment_path)?;
 
         let repo_url = repo
@@ -62,17 +63,16 @@ impl Deployment {
             .to_string()
             .replace(".git", "");
 
+        // Parse the `.maint` file
+        let settings = DeploymentSettings::from_deployment_path(&deployment_path).await?;
+
         Ok(Self {
-            deployment_path,
+            settings,
             deployment_dir: deployment_dir.to_owned(),
             repo_url,
             repo_owner,
             repo_name,
         })
-    }
-
-    pub async fn get_settings(&self) -> Res<DeploymentSettings> {
-        DeploymentSettings::from_deployment(self).await
     }
 
     pub async fn has_access(&self, auth: &Auth) -> Res<bool> {
@@ -99,10 +99,9 @@ impl Deployment {
 
     /// Get the environment variables for a project
     pub async fn get_env(&self) -> Res<Option<Map<String, Value>>> {
-        let project_settings = self.get_settings().await?;
-
-        project_settings
+        self.settings
             .env_file
+            .as_ref()
             .map(|env_path| {
                 // Ideally the env_path should exist as it is checked while parsing. If it doesn't the dotenv parse function should catch that error.
                 let parsed_env = dotenvy::from_path_iter(env_path)?
@@ -119,8 +118,7 @@ impl Deployment {
 
     /// Get a list of all containers in the deployment
     pub async fn get_containers(&self, docker: &Docker) -> Res<Vec<ContainerSummary>> {
-        let project_settings = self.get_settings().await?;
-        let compose_file_path = project_settings.compose_file;
+        let compose_file_path = self.settings.compose_file.as_path();
 
         let mut filter = HashMap::new();
         filter.insert(
@@ -209,6 +207,7 @@ impl Deployment {
     }
 }
 
+#[derive(Clone, Default)]
 /// Settings for a deployment
 pub struct DeploymentSettings {
     /// Path to the compose file
@@ -219,14 +218,14 @@ pub struct DeploymentSettings {
 
 impl DeploymentSettings {
     /// Get the project settings (stored in .maint on the top level of the project directory)
-    pub async fn from_deployment(deployment: &Deployment) -> Res<Self> {
-        let maint_file_path = deployment.deployment_path.join(".maint");
+    pub async fn from_deployment_path(deployment_path: &Path) -> Res<Self> {
+        let maint_file_path = deployment_path.join(".maint");
         let raw_settings = match fs::read_to_string(maint_file_path).await {
             Ok(contents) => contents.parse::<Table>(),
             Err(_) => Ok(Table::new()),
         }?;
 
-        let deploy_dir = Self::resolve_deploy_dir(&deployment.deployment_path, &raw_settings)?;
+        let deploy_dir = Self::resolve_deploy_dir(deployment_path, &raw_settings)?;
         let compose_file = Self::resolve_compose_file(&deploy_dir, &raw_settings)?;
         let compose_file = compose_file.canonicalize()?;
         let env_file = Self::resolve_env_file(&deploy_dir, &raw_settings);
