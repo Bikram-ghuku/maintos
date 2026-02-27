@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8.6"
-bollard = { version = "0.19.3", default-features = false, features = ["pipe"] }
+bollard = { version = "0.20.0", default-features = false, features = ["pipe"] }
 chrono = "0.4.42"
 clap = { version = "4.5.49", features = ["derive", "env"] }
 dotenvy = "0.15.7"
@@ -21,3 +21,4 @@ anyhow = "1.0.100"
 git2 = { version = "0.20.2", features = ["vendored-openssl"] }
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 toml = "1.0.3"
+compose-rs = "0.0.4"
