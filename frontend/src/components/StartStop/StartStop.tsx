@@ -6,6 +6,7 @@ import "./start_stop.scss";
 function StartStopDeployment({ projectName }: { projectName?: string }) {
     const auth = useAuthContext();
     const [message, setMessage] = useState<string>("");
+    const [disabled, setDisabled] = useState<boolean>(false);
 
     const start = async () => {
         if (!projectName) {
@@ -13,6 +14,7 @@ function StartStopDeployment({ projectName }: { projectName?: string }) {
             return;
         }
         setMessage("Starting deployment...");
+        setDisabled(true);
         const resp = await makeRequest(
             `${projectName}/start`,
             "post",
@@ -22,11 +24,13 @@ function StartStopDeployment({ projectName }: { projectName?: string }) {
 
         if (resp.status == "success") {
             setMessage("");
+            setDisabled(false);
         }
         else {
             setMessage(
                 `Error starting deployment (${resp.status_code}): ${resp.message}`,
             );
+            setDisabled(false);
         }
     };
 
@@ -36,6 +40,7 @@ function StartStopDeployment({ projectName }: { projectName?: string }) {
             return;
         }
         setMessage("Stopping deployment...");
+        setDisabled(true);
         const resp = await makeRequest(
             `${projectName}/stop`,
             "post",
@@ -45,11 +50,13 @@ function StartStopDeployment({ projectName }: { projectName?: string }) {
 
         if (resp.status == "success") {
             setMessage("");
+            setDisabled(false);
         }
         else {
             setMessage(
                 `Error stopping deployment (${resp.status_code}): ${resp.message}`,
             );
+            setDisabled(false);
         }
     };
 
@@ -58,10 +65,10 @@ function StartStopDeployment({ projectName }: { projectName?: string }) {
             {message && <p className="message">{message}</p>}
 
             <div className="buttons">
-                <button className="start-button" onClick={start}>
+                <button className="start-button" onClick={start} disabled={disabled}>
                     Start
                 </button>
-                <button className="stop-button" onClick={stop}>
+                <button className="stop-button" onClick={stop} disabled={disabled}>
                     Stop
                 </button>
             </div>
