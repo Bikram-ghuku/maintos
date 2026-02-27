@@ -37,16 +37,12 @@ export interface IEndpointTypes {
 		request: null;
 		response: Deployment[];
 	};
-	get_env: {
-		request: {
-			project_name: string;
-		}
+	[E: `${string}/get_env`]: {
+		request: null;
 		response: Record<string, string>
 	};
-	get_status: {
-		request: {
-			project_name: string;
-		}
+	[E: `${string}/get_status`]: {
+		request: null;
 		response: {
 			container: string;
 			state: "" | "unknown" | "created" | "restarting" | "running" | "removing" | "paused" | "exited" | "dead";

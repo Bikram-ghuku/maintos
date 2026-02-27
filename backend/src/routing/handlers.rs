@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::{Extension, extract::Json, http::StatusCode};
 use serde::Deserialize;
 use serde::Serialize;
@@ -86,20 +86,13 @@ pub async fn deployments(State(state): HandlerState) -> HandlerReturn<Vec<Deploy
     ))
 }
 
-#[derive(Deserialize)]
-/// The request format for the get environment variables endpoint
-pub struct EnvVarsReq {
-    project_name: String,
-}
-
 /// Gets the environment variables for a project if the user has access to it
 pub async fn get_env_vars(
     State(state): HandlerState,
     Extension(auth): Extension<Auth>,
-    Json(body): Json<EnvVarsReq>,
+    Path(project_name): Path<String>,
 ) -> HandlerReturn<Value> {
-    let project_name = body.project_name.as_str();
-    let deployment = Deployment::from_deployment_dir(&state.env_vars, project_name).await?;
+    let deployment = Deployment::from_deployment_dir(&state.env_vars, &project_name).await?;
     let access = deployment.has_access(&auth).await?;
 
     if access {
@@ -128,10 +121,9 @@ pub async fn get_env_vars(
 pub async fn get_status(
     State(state): HandlerState,
     Extension(auth): Extension<Auth>,
-    Json(body): Json<EnvVarsReq>,
+    Path(project_name): Path<String>,
 ) -> HandlerReturn<Value> {
-    let project_name = body.project_name.as_str();
-    let deployment = Deployment::from_deployment_dir(&state.env_vars, project_name).await?;
+    let deployment = Deployment::from_deployment_dir(&state.env_vars, &project_name).await?;
     let access = deployment.has_access(&auth).await?;
 
     if access {
