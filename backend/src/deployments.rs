@@ -33,6 +33,13 @@ pub struct Deployment {
 impl Deployment {
     pub async fn from_deployment_dir(env_vars: &EnvVars, deployment_dir: &str) -> Res<Self> {
         let deployments_dir = &env_vars.deployments_dir;
+        let git_path = deployments_dir.join(deployment_dir).join(".git");
+        if !git_path.exists() {
+            return Err(anyhow!(
+                "Directory {} is not a git repository.",
+                deployment_dir
+            ));
+        }
 
         let deployment_path = deployments_dir.join(deployment_dir).canonicalize()?;
         let repo = Repository::open(&deployment_path)?;
@@ -62,6 +69,12 @@ impl Deployment {
             ))?
             .to_string()
             .replace(".git", "");
+
+        if repo_owner.is_empty() || repo_name.is_empty() || repo_owner != env_vars.gh_org_name {
+            return Err(anyhow!(
+                "Repository remote URL does not match expected format or organization: {repo_url}"
+            ));
+        }
 
         // Parse the `.maint` file
         let settings = DeploymentSettings::from_deployment_path(&deployment_path).await?;
