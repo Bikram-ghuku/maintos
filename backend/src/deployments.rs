@@ -198,7 +198,9 @@ impl DeploymentSettings {
 
         let deploy_dir = Self::resolve_deploy_dir(&deployment.deployment_path, &raw_settings)?;
         let compose_file = Self::resolve_compose_file(&deploy_dir, &raw_settings)?;
+        let compose_file = compose_file.canonicalize()?;
         let env_file = Self::resolve_env_file(&deploy_dir, &raw_settings);
+        let env_file = env_file.map(|path| path.canonicalize()).transpose()?;
 
         Ok(Self {
             compose_file,
