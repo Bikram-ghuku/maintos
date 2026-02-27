@@ -116,64 +116,26 @@ pub async fn get_status(
     ))
 }
 
-#[derive(Deserialize)]
-/// The request format for the stop endpoint
-pub struct StopReq {
-    project_name: String,
-}
-
-/// Stops all containers in a deployment if the user has access to it
 pub async fn stop(
     State(state): HandlerState,
-    Extension(auth): Extension<Auth>,
-    Json(body): Json<StopReq>,
+    Extension(deployment): Extension<Deployment>,
 ) -> HandlerReturn<Value> {
-    let project_name = body.project_name.as_str();
-    let deployment = Deployment::from_deployment_dir(&state.env_vars, project_name).await?;
-    let access = deployment.has_access(&auth).await?;
+    deployment.down(&state.docker).await?;
 
-    if access {
-        deployment.down(&state.docker).await?;
-
-        Ok(BackendResponse::ok(
-            "Successfully stopped containers.".into(),
-            Value::Null,
-        ))
-    } else {
-        Ok(BackendResponse::error(
-            "Access denied.".into(),
-            StatusCode::UNAUTHORIZED,
-        ))
-    }
+    Ok(BackendResponse::ok(
+        "Successfully stopped containers.".into(),
+        Value::Null,
+    ))
 }
 
-#[derive(Deserialize)]
-/// The request format for the start endpoint
-pub struct StartReq {
-    project_name: String,
-}
-
-/// Starts all containers in a deployment if the user has access to it
 pub async fn start(
     State(state): HandlerState,
-    Extension(auth): Extension<Auth>,
-    Json(body): Json<StartReq>,
+    Extension(deployment): Extension<Deployment>,
 ) -> HandlerReturn<Value> {
-    let project_name = body.project_name.as_str();
-    let deployment = Deployment::from_deployment_dir(&state.env_vars, project_name).await?;
-    let access = deployment.has_access(&auth).await?;
+    deployment.up(&state.docker).await?;
 
-    if access {
-        deployment.up(&state.docker).await?;
-
-        Ok(BackendResponse::ok(
-            "Successfully started containers.".into(),
-            Value::Null,
-        ))
-    } else {
-        Ok(BackendResponse::error(
-            "Access denied.".into(),
-            StatusCode::UNAUTHORIZED,
-        ))
-    }
+    Ok(BackendResponse::ok(
+        "Successfully started containers.".into(),
+        Value::Null,
+    ))
 }
