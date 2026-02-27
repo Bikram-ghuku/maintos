@@ -112,7 +112,7 @@ pub async fn get_env_vars(
             ))
         } else {
             Ok(BackendResponse::error(
-                "`.env` file not found.".into(),
+                "`.env` does not exist.".into(),
                 StatusCode::NOT_FOUND,
             ))
         }

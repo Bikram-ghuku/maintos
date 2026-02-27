@@ -96,6 +96,19 @@ This project needs a [GitHub App](https://github.com/settings/developers). In th
 ## Deployment
 [WIP]
 
+## Project-wide deployment settings
+
+For each project (repository), a `.maint` file can be present in the root directory. It can have the following fields:
+
+```toml
+deploy_dir = "backend" # default: "."
+compose_file = "docker-compose.prod.yml" # default: "docker-compose.yaml", "docker-compose.yml" (whichever exists)
+env_file = ".production.env" # default: ".env"
+```
+
+All the fields are optional.
+
+
 ## Contact
 
 <p>

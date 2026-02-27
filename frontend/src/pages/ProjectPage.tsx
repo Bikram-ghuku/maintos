@@ -27,8 +27,8 @@ function ProjectPage() {
                 }
             />
             {auth.isAuthenticated && <>
-                <EnvVars projectName={projectName} />
                 <DeploymentStatus projectName={projectName} />    
+                <EnvVars projectName={projectName} />
             </>}
         </>
     );

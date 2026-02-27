@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use anyhow::anyhow;
 use bollard::{Docker, query_parameters::ListContainersOptionsBuilder, secret::ContainerSummary};
@@ -7,6 +11,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use tokio::fs;
+use toml::Table;
 
 use crate::{auth::Auth, env::EnvVars, github, utils::Res};
 
@@ -93,32 +98,27 @@ impl Deployment {
     /// Get the environment variables for a project
     pub async fn get_env(&self) -> Res<Option<Map<String, Value>>> {
         let project_settings = self.get_settings().await?;
-        let env_file_path = self
-            .deployment_path
-            .join(&project_settings.deploy_dir)
-            .join(".env");
 
-        if env_file_path.exists() {
-            let parsed_env = dotenvy::from_path_iter(env_file_path)?
-                .collect::<Result<Vec<(String, String)>, dotenvy::Error>>()?;
+        project_settings
+            .env_file
+            .map(|env_path| {
+                // Ideally the env_path should exist as it is checked while parsing. If it doesn't the dotenv parse function should catch that error.
+                let parsed_env = dotenvy::from_path_iter(env_path)?
+                    .collect::<Result<Vec<(String, String)>, dotenvy::Error>>()?;
 
-            Ok(Some(Map::from_iter(
-                parsed_env
-                    .into_iter()
-                    .map(|(key, value)| (key, Value::String(value))),
-            )))
-        } else {
-            Ok(None)
-        }
+                Ok(Map::from_iter(
+                    parsed_env
+                        .into_iter()
+                        .map(|(key, value)| (key, Value::String(value))),
+                ))
+            })
+            .transpose()
     }
 
     /// Get a list of all containers in the deployment
     pub async fn get_containers(&self, docker: &Docker) -> Res<Vec<ContainerSummary>> {
         let project_settings = self.get_settings().await?;
-        let compose_file_path = self
-            .deployment_path
-            .join(&project_settings.deploy_dir)
-            .join("docker-compose.yaml"); // TODO: will come from project settings
+        let compose_file_path = project_settings.compose_file;
 
         let mut filter = HashMap::new();
         filter.insert(
@@ -179,32 +179,93 @@ impl Deployment {
     }
 }
 
-#[derive(Deserialize, Serialize)]
-/// Settings for a deployment, obtained from its `.maint` file
+/// Settings for a deployment
 pub struct DeploymentSettings {
-    /// Subdirectory which is deployed (relative to the project root)
-    pub deploy_dir: String,
-}
-
-impl Default for DeploymentSettings {
-    fn default() -> Self {
-        DeploymentSettings {
-            deploy_dir: String::from("."),
-        }
-    }
+    /// Path to the compose file
+    pub compose_file: PathBuf,
+    /// Path to the environment variables file
+    pub env_file: Option<PathBuf>,
 }
 
 impl DeploymentSettings {
     /// Get the project settings (stored in .maint on the top level of the project directory)
     pub async fn from_deployment(deployment: &Deployment) -> Res<Self> {
         let maint_file_path = deployment.deployment_path.join(".maint");
+        let raw_settings = match fs::read_to_string(maint_file_path).await {
+            Ok(contents) => contents.parse::<Table>(),
+            Err(_) => Ok(Table::new()),
+        }?;
 
-        if let Ok(maint_file_contents) = fs::read_to_string(maint_file_path).await {
-            Ok(Self {
-                deploy_dir: maint_file_contents.trim().into(),
-            })
+        let deploy_dir = Self::resolve_deploy_dir(&deployment.deployment_path, &raw_settings)?;
+        let compose_file = Self::resolve_compose_file(&deploy_dir, &raw_settings)?;
+        let env_file = Self::resolve_env_file(&deploy_dir, &raw_settings);
+
+        Ok(Self {
+            compose_file,
+            env_file,
+        })
+    }
+
+    /// Resolve the deployment directory
+    fn resolve_deploy_dir(deployment_path: &Path, settings: &Table) -> Res<PathBuf> {
+        let deploy_dir = settings
+            .get("deploy_dir")
+            .and_then(|v| v.as_str())
+            .unwrap_or(".");
+
+        let deploy_dir = deployment_path.join(deploy_dir);
+        if deploy_dir.exists() {
+            Ok(deploy_dir)
         } else {
-            Ok(Self::default())
+            Err(anyhow!(
+                "Deploy directory does not exist: {}",
+                deploy_dir.display()
+            ))
+        }
+    }
+
+    /// Resolve compose file path
+    fn resolve_compose_file(deploy_dir: &Path, settings: &Table) -> Res<PathBuf> {
+        if let Some(compose_file) = settings.get("compose_file").and_then(|v| v.as_str()) {
+            let compose_file = deploy_dir.join(compose_file);
+
+            return if compose_file.exists() {
+                Ok(compose_file)
+            } else {
+                Err(anyhow!(
+                    "Configured compose file does not exist: {}",
+                    compose_file.display()
+                ))
+            };
+        }
+
+        for filename in &["docker-compose.yaml", "docker-compose.yml"] {
+            let path = deploy_dir.join(filename);
+            if path.exists() {
+                return Ok(path);
+            }
+        }
+
+        Err(anyhow!(
+            "No compose file found in {}.",
+            deploy_dir.display()
+        ))
+    }
+
+    /// Resolve environment file path
+    fn resolve_env_file(deploy_dir: &Path, settings: &Table) -> Option<PathBuf> {
+        if let Some(env_file) = settings.get("env_file").and_then(|v| v.as_str()) {
+            let env_file = deploy_dir.join(env_file);
+            if env_file.exists() {
+                return Some(env_file);
+            }
+        }
+
+        let default_env = deploy_dir.join(".env");
+        if default_env.exists() {
+            Some(default_env)
+        } else {
+            None
         }
     }
 }
