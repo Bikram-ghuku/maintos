@@ -15,7 +15,7 @@ use toml::Table;
 
 use crate::{auth::Auth, env::EnvVars, github, utils::Res};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 /// All the information for a repository
 pub struct Deployment {
     #[serde(skip_serializing)]

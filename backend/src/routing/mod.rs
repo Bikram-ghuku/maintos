@@ -24,13 +24,23 @@ pub fn get_router(env_vars: &EnvVars, docker: Arc<Docker>) -> axum::Router {
     });
 
     axum::Router::new()
-        .route("/profile", axum::routing::get(handlers::profile))
-        .route("/deployments", axum::routing::get(handlers::deployments))
-        .route("/{project_name}/get_env", axum::routing::post(handlers::get_env_vars))
-        .route("/{project_name}/get_status", axum::routing::post(handlers::get_status))
+        .route(
+            "/{project_name}/get_env",
+            axum::routing::post(handlers::get_env_vars),
+        )
+        .route(
+            "/{project_name}/get_status",
+            axum::routing::post(handlers::get_status),
+        )
         .route_layer(axum::middleware::from_fn_with_state(
             state.clone(),
-            middleware::verify_jwt_middleware,
+            middleware::parse_deployment,
+        ))
+        .route("/profile", axum::routing::get(handlers::profile))
+        .route("/deployments", axum::routing::get(handlers::deployments))
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::verify_jwt,
         ))
         .route("/oauth", axum::routing::post(handlers::oauth))
         .route("/healthcheck", axum::routing::get(handlers::healthcheck))
