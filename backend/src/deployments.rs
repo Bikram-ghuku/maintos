@@ -225,7 +225,7 @@ impl Deployment {
             follow: false,
             stdout: true,
             stderr: true,
-            tail: "200".to_string(),
+            tail: "50".to_string(),
             ..Default::default()
         };
 
