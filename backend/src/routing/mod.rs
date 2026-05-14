@@ -33,7 +33,7 @@ pub fn get_router(env_vars: &EnvVars, docker: Arc<Docker>) -> axum::Router {
             axum::routing::post(handlers::get_status),
         )
         .route(
-            "/{container}/logs",
+            "/{project_name}/logs/{container}",
             axum::routing::post(handlers::get_logs),
         )
         .route("/{project_name}/stop", axum::routing::post(handlers::stop))

@@ -64,7 +64,7 @@ function DeploymentStatus({ projectName }: { projectName?: string }) {
 		}
 		setLogsMessage('Fetching logs...')
 		const resp = await makeRequest(
-			`${selectedContainer}/logs`,
+			`${projectName}/logs/${selectedContainer}`,
 			'post',
 			null,
 			auth.jwt

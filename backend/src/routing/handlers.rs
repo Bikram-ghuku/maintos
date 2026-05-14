@@ -143,11 +143,11 @@ pub async fn start(
 
 pub async fn get_logs(
     State(state): HandlerState,
-    Path(_container): Path<String>,
+    Path((_project_name, container)): Path<(String, String)>,
     Extension(deployment): Extension<Deployment>,
 ) -> HandlerReturn<Vec<String>> {
     let logs = deployment
-        .get_container_logs_by_service(&state.docker, &_container)
+        .get_container_logs_by_service(&state.docker, &container)
         .await?;
 
     Ok(BackendResponse::ok(

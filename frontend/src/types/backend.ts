@@ -66,7 +66,7 @@ export interface IEndpointTypes {
 		request: null
 		response: null
 	}
-	[E: `${string}/logs`]: {
+	[E: `${string}/logs/${string}`]: {
 		request: null
 		response: string[]
 	}
